@@ -1,0 +1,22 @@
+name: Class reminders
+on:
+  schedule:
+    - cron: "0 0 * * 1-6"
+    - cron: "0 12 * * 0"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: daily or weekly
+        default: daily
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send digest
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          WECOM_WEBHOOK_URL: ${{ secrets.WECOM_WEBHOOK_URL }}
+          MODE: ${{ github.event.inputs.mode || (github.event.schedule == '0 12 * * 0' && 'weekly' || 'daily') }}
+        run: python reminder_bot.py
