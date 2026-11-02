@@ -41,18 +41,36 @@ def load_rows():
     return sorted(out)
 
 
+def load_infos():
+    sb, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY", "")
+    if not sb:
+        return []
+    req = urllib.request.Request(sb + "/rest/v1/infos?select=text&order=id",
+                                 headers={"apikey": key, "Authorization": "Bearer " + key})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return [x["text"] for x in json.load(r) if x.get("text")]
+    except Exception:
+        return []
+
+
 def build(items, today):
     if MODE == "weekly":
         monday = today + timedelta(days=1) if today.weekday() == 6 else today - timedelta(days=today.weekday())
         sunday = monday + timedelta(days=6)
-        lines = ["📆 WEEKLY CLASS UPDATE", f"{monday:%d %b} – {sunday:%d %b %Y}", "",
-                 "Hey everyone! Here's what's coming up this week 👇", "", "🎯 DEADLINES THIS WEEK"]
         week = [i for i in items if monday <= i[0] <= sunday]
-        for d, t, c, a in week:
-            lines.append(f"• {d:%a}, {d:%d %b}" + (f", {t}" if t else "") + f" | {c} | {a}")
+        lines = ["Hello everyone! Here are the deadlines for the upcoming week:"]
+        for day in sorted({i[0] for i in week}):
+            lines.append(f"{day:%A, %d %B}")
+            for d, t, c, a in week:
+                if d == day:
+                    lines.append(f"• {c or 'General'} – Deadline for {a}" + (f" ({t})" if t else ""))
         if not week:
             lines.append("• Nothing due this week 🎉")
-        return "\n".join(lines + ["", "Have a great week, everyone! 🚀"])
+        infos = load_infos()
+        if infos:
+            lines += ["", "Other important info:"] + [f"• {x}" for x in infos]
+        return "\n".join(lines + ["", "Have a great week!"])
 
     due = [i for i in items if i[0] == today]
     if not due:
